@@ -1,0 +1,24 @@
+{{ if .Values.exporter.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "restic-pvc-backup.exporterName" . }}
+  labels:
+    {{ include "restic-pvc-backup.labels" . | nindent 4 }}
+    app.kubernetes.io/component: exporter
+    restic-backup-instance: {{ include "restic-pvc-backup.fullname" . }}
+  {{ with .Values.exporter.service.annotations }}
+  annotations:
+    {{ toYaml . | nindent 4 }}
+  {{ end }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: {{ .Values.exporter.service.port }}
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    {{ include "restic-pvc-backup.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: exporter
+{{ end }}

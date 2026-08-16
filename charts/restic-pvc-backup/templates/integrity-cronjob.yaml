@@ -1,0 +1,99 @@
+{{ if .Values.integrityCheck.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "restic-pvc-backup.integrityName" . }}
+  labels:
+    {{ include "restic-pvc-backup.labels" . | nindent 4 }}
+    app.kubernetes.io/component: integrity-check
+spec:
+  schedule: {{ .Values.integrityCheck.schedule | quote }}
+{{ if .Values.integrityCheck.timeZone }}
+  timeZone: {{ .Values.integrityCheck.timeZone | quote }}
+{{ end }}
+  suspend: {{ .Values.integrityCheck.suspend }}
+  concurrencyPolicy: {{ .Values.integrityCheck.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.integrityCheck.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.integrityCheck.failedJobsHistoryLimit }}
+{{ if ne .Values.integrityCheck.startingDeadlineSeconds nil }}
+  startingDeadlineSeconds: {{ .Values.integrityCheck.startingDeadlineSeconds }}
+{{ end }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{ include "restic-pvc-backup.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: integrity-check
+    spec:
+      backoffLimit: {{ .Values.integrityCheck.backoffLimit }}
+{{ if ne .Values.integrityCheck.activeDeadlineSeconds nil }}
+      activeDeadlineSeconds: {{ .Values.integrityCheck.activeDeadlineSeconds }}
+{{ end }}
+      template:
+        metadata:
+          labels:
+            {{ include "restic-pvc-backup.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: integrity-check
+            {{ with .Values.podLabels }}
+            {{ toYaml . | nindent 12 }}
+            {{ end }}
+          {{ with .Values.podAnnotations }}
+          annotations:
+            {{ toYaml . | nindent 12 }}
+          {{ end }}
+        spec:
+          restartPolicy: Never
+          {{ with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{ toYaml . | nindent 12 }}
+          {{ end }}
+          securityContext:
+            {{ toYaml .Values.podSecurityContext | nindent 12 }}
+          containers:
+            - name: restic-integrity
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["/bin/sh", "/config/integrity-check.sh"]
+              envFrom:
+                - secretRef:
+                    name: {{ include "restic-pvc-backup.secretName" . }}
+              env:
+                - name: RESTIC_CACHE_DIR
+                  value: /cache
+                - name: RESTIC_RETRY_LOCK
+                  value: {{ .Values.repository.retryLock | quote }}
+              securityContext:
+                {{ toYaml .Values.containerSecurityContext | nindent 16 }}
+              resources:
+                {{ toYaml .Values.integrityResources | nindent 16 }}
+              volumeMounts:
+                - name: config
+                  mountPath: /config
+                  readOnly: true
+                - name: cache
+                  mountPath: /cache
+          volumes:
+            - name: config
+              configMap:
+                name: {{ include "restic-pvc-backup.configName" . }}
+                defaultMode: 0555
+            - name: cache
+{{ if eq .Values.integrityCache.type "pvc" }}
+              persistentVolumeClaim:
+                claimName: {{ required "integrityCache.existingClaim is required when integrityCache.type=pvc" .Values.integrityCache.existingClaim }}
+{{ else }}
+              emptyDir:
+                {{ toYaml .Values.integrityCache.emptyDir | nindent 16 }}
+{{ end }}
+          {{ with .Values.integrityNodeSelector }}
+          nodeSelector:
+            {{ toYaml . | nindent 12 }}
+          {{ end }}
+          {{ with .Values.integrityAffinity }}
+          affinity:
+            {{ toYaml . | nindent 12 }}
+          {{ end }}
+          {{ with .Values.integrityTolerations }}
+          tolerations:
+            {{ toYaml . | nindent 12 }}
+          {{ end }}
+{{ end }}

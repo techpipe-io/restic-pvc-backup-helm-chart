@@ -1,0 +1,109 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "restic-pvc-backup.backupCronJobName" . }}
+  labels:
+    {{ include "restic-pvc-backup.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+{{ if .Values.backup.timeZone }}
+  timeZone: {{ .Values.backup.timeZone | quote }}
+{{ end }}
+  suspend: {{ .Values.backup.suspend }}
+  concurrencyPolicy: {{ .Values.backup.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.backup.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.backup.failedJobsHistoryLimit }}
+{{ if ne .Values.backup.startingDeadlineSeconds nil }}
+  startingDeadlineSeconds: {{ .Values.backup.startingDeadlineSeconds }}
+{{ end }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{ include "restic-pvc-backup.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backup
+    spec:
+      backoffLimit: {{ .Values.backup.backoffLimit }}
+{{ if ne .Values.backup.activeDeadlineSeconds nil }}
+      activeDeadlineSeconds: {{ .Values.backup.activeDeadlineSeconds }}
+{{ end }}
+      template:
+        metadata:
+          labels:
+            {{ include "restic-pvc-backup.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: backup
+            {{ with .Values.podLabels }}
+            {{ toYaml . | nindent 12 }}
+            {{ end }}
+          {{ with .Values.podAnnotations }}
+          annotations:
+            {{ toYaml . | nindent 12 }}
+          {{ end }}
+        spec:
+          restartPolicy: Never
+          {{ with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{ toYaml . | nindent 12 }}
+          {{ end }}
+          securityContext:
+            {{ toYaml .Values.podSecurityContext | nindent 12 }}
+          containers:
+            - name: restic
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["/bin/sh", "/config/backup.sh"]
+              envFrom:
+                - secretRef:
+                    name: {{ include "restic-pvc-backup.secretName" . }}
+              env:
+                - name: RESTIC_HOST
+                  value: {{ default (include "restic-pvc-backup.fullname" .) .Values.backup.host | quote }}
+                - name: RESTIC_CACHE_DIR
+                  value: /cache
+                - name: RESTIC_RETRY_LOCK
+                  value: {{ .Values.repository.retryLock | quote }}
+              securityContext:
+                {{ toYaml .Values.containerSecurityContext | nindent 16 }}
+              resources:
+                {{ toYaml .Values.resources | nindent 16 }}
+              volumeMounts:
+                - name: config
+                  mountPath: /config
+                  readOnly: true
+                - name: cache
+                  mountPath: /cache
+{{ range $target := .Values.backup.targets }}
+                - name: pvc-{{ $target.name }}
+                  mountPath: /backup/{{ $target.name }}
+                  readOnly: true
+{{ end }}
+          volumes:
+            - name: config
+              configMap:
+                name: {{ include "restic-pvc-backup.configName" . }}
+                defaultMode: 0555
+            - name: cache
+{{ if eq .Values.cache.type "pvc" }}
+              persistentVolumeClaim:
+                claimName: {{ required "cache.existingClaim is required when cache.type=pvc" .Values.cache.existingClaim }}
+{{ else }}
+              emptyDir:
+                {{ toYaml .Values.cache.emptyDir | nindent 16 }}
+{{ end }}
+{{ range $target := .Values.backup.targets }}
+            - name: pvc-{{ $target.name }}
+              persistentVolumeClaim:
+                claimName: {{ required (printf "backup.targets[%s].claimName is required" $target.name) $target.claimName }}
+{{ end }}
+          {{ with .Values.nodeSelector }}
+          nodeSelector:
+            {{ toYaml . | nindent 12 }}
+          {{ end }}
+          {{ with .Values.affinity }}
+          affinity:
+            {{ toYaml . | nindent 12 }}
+          {{ end }}
+          {{ with .Values.tolerations }}
+          tolerations:
+            {{ toYaml . | nindent 12 }}
+          {{ end }}

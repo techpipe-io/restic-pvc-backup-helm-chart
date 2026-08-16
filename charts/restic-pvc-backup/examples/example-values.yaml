@@ -1,0 +1,82 @@
+backup:
+  schedule: "15 3 * * *"
+  timeZone: "Europe/Belgrade"
+  host: "haskel"
+  tags:
+    - restic
+    - production
+  targets:
+    - name: data
+      claimName: data
+      # Empty include would back up the whole PVC.
+      include:
+        - data/git/repositories
+        - data/attachments
+        - data/repo-avatars
+        - data/lfs
+        - custom
+      exclude:
+        - data/log/**
+        - data/indexers/**
+        - tmp/**
+
+repository:
+  existingSecret: restic-repository
+  autoInitialize: false
+  retryLock: "15m"
+
+retention:
+  enabled: true
+  prune: true
+  groupBy: "host,tags"
+  keepDaily: "7"
+  keepWeekly: "4"
+  keepMonthly: "6"
+  keepYearly: "1"
+
+# Cheap structural check after every backup/prune.
+check:
+  enabled: true
+  readData: false
+  readDataSubset: ""
+
+# Expensive repository data verification on a separate schedule.
+integrityCheck:
+  enabled: true
+  schedule: "45 4 * * 0"
+  timeZone: "Europe/Belgrade"
+  mode: subset
+  readDataSubset: "10%"
+  withCache: false
+
+exporter:
+  enabled: true
+  # S3 repository scans are intentionally not frequent.
+  refreshInterval: 3600
+  noCheck: true
+
+serviceMonitor:
+  enabled: true
+  additionalLabels:
+    release: kube-prometheus-stack
+
+prometheusRule:
+  enabled: true
+  additionalLabels:
+    release: kube-prometheus-stack
+  staleBackupSeconds: 93600       # 26h
+  staleIntegritySeconds: 691200   # 8d
+  rules:
+    backupLatestRunFailed: true
+    backupStale: true
+    backupRunningTooLong: true
+    integrityLatestRunFailed: true
+    integrityStale: true
+    integrityRunningTooLong: true
+    exporterDown: true
+    repositoryLocked: true
+
+grafanaDashboard:
+  enabled: true
+  labels:
+    grafana_dashboard: "1"
