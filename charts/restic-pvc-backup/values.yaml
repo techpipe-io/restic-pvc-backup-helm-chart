@@ -156,8 +156,8 @@ integrityAffinity: {}
 exporter:
   enabled: true
   image:
-    repository: ghcr.io/ngosang/restic-exporter
-    tag: "2.0.2"
+    repository: ngosang/restic-exporter
+    tag: "2.1.2"
     pullPolicy: IfNotPresent
   # Repository scans are relatively expensive for remote object storage.
   refreshInterval: 3600
