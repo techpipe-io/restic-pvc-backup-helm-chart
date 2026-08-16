@@ -1,0 +1,27 @@
+apiVersion: v1
+entries:
+  restic-pvc-backup:
+  - apiVersion: v2
+    appVersion: 0.19.1
+    created: "2026-08-16T22:08:26.395429009Z"
+    description: Scheduled Restic backups of one or more Kubernetes PVCs with retention,
+      integrity checks, and Prometheus/Grafana observability
+    digest: 41ebf2d6e845746cd4c45849aa268a602f7f8f16d2e21f015992438b1626da60
+    home: https://restic.net/
+    keywords:
+    - backup
+    - restic
+    - pvc
+    - s3
+    - prometheus
+    - grafana
+    kubeVersion: '>=1.21.0-0'
+    name: restic-pvc-backup
+    sources:
+    - https://github.com/restic/restic
+    - https://github.com/ngosang/restic-exporter
+    type: application
+    urls:
+    - https://techpipe-io.github.io/restic-pvc-backup-helm-chart/restic-pvc-backup-0.2.0.tgz
+    version: 0.2.0
+generated: "2026-08-16T22:08:26.394306297Z"
