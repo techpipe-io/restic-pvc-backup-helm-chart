@@ -1,0 +1,34 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+apiVersion: v2
+appVersion: 0.19.1
+description: Scheduled Restic backups of one or more Kubernetes PVCs with retention,
+  integrity checks, and Prometheus/Grafana observability
+home: https://restic.net/
+keywords:
+- - backup
+- - restic
+- - pvc
+- - s3
+- - prometheus
+- - grafana
+kubeVersion: '>=1.21.0-0'
+name: restic-pvc-backup
+sources:
+- - https://github.com/restic/restic
+- - https://github.com/ngosang/restic-exporter
+type: application
+version: 0.2.1
+
+...
+files:
+  restic-pvc-backup-0.2.1.tgz: sha256:82c6d4c1379713795cac8a49f6bda32c4d77f909379b4410f341b40cb0b901ba
+
+-----BEGIN PGP SIGNATURE-----
+
+wrsEARYKAG0FgmqCP2YJEBcbE75G7/Z4RRQAAAAAABwAIHNhbHRAbm90YXRpb25z
+Lm9wZW5wZ3Bqcy5vcmcAyuMu6lBz5NiFHwZbVqw+Hl6qkaQtRws2ci3AibFmzBYh
+BHZRcXMlrTt8RU86zBcbE75G7/Z4AABNIAD/domO1AjtKMAQmyj6gSLGR/0E56LT
+Ge4hcrx8cucIVwIA/Aje+hJ1LekWptWbVJzGT8BXgFaHjtFYhbYcFclHl+0F
+-----END PGP SIGNATURE-----
